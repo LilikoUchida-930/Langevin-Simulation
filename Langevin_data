@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jul 13 12:48:06 2021
+
+@author: lilikouchida
+
+LANGEVIN SIMULATION DATA: This script utilizes the Langevin equations to produce data to be used with 
+Plots.m (Matlab script in UltraTouch > Langevin simulation). The dimensions of the microfluidic channel being used
+in this simulation is 0.002m x 0.002m. Two .csv files are produced in this script: 
+    
+    1. x_pos
+        Returns an n x N matrix of the x-coordinates at all time steps n for every particle N.
+    
+    2. y_pos
+        Returns an n x N matrix of the y-coordinates at all time steps n for every particle N. 
+
+The x_pos and y_pos matrices combined created coordinate points indicating a specific location for each of 
+N particles at every time step n. 
+
+"""
+
+#*************************************************************************************************************
+
+# IMPORT STATEMENTS
+
+import matplotlib.animation as ani
+import numpy as np
+import pandas as pd
+import random 
+
+
+
+
+#*************************************************************************************************************
+
+
+# CONSTANTS / USER VARIABLE PARAMETERS
+
+N = 100                                          # number of cells 
+R = 1e-6                                         # cell radius [m]
+dt = 0.1                                           # time step || decrease to 0.1
+duration = 1000                                  # total duration over which cells are being observed 
+n = int(duration/dt)                             # total number of time steps being recorded
+T = 300                                          # ambient temperature [K]
+x_pos = np.zeros((n,N),dtype=float)              # creates array of zeros with size n x N
+y_pos = np.zeros((n,N),dtype=float)              # creates array of zeros with size n x N
+theta_val = np.zeros((n,N),dtype=float)          # creates array of zeros with size n x N
+k = 1.38e-23                                     # Boltzmann constant [m^2kg/s^2K]
+
+
+eta = 0.001                                      # water viscosity [Pa s] --> use effective rotation diff. coeff. instead 
+V = 1e-5                                         # swimming speed [m/s]
+W = 0                                            # angular velocity [rad/s]
+w = 0                                            # vorticity of fluid
+muR_M = 2800                                     # product of hydroynaic rotational mobility and magnetic moment [1/Ts]
+B = 1e-6                                         # magnetic field strength [T]
+Dr = 0.125                                       # rotational diffusion coefficient of a sphere (Berg, 83) || .125
+
+
+#*************************************************************************************************************
+ 
+# ITERATION
+
+def update(): 
+    
+    for i in range (0,N):                           # for every particle...
+        x_pos[0,i] = random.uniform(0,0.002)        # initialize  x coordinates for all N particles at time t = 0
+                                                    # to a random position within the x-axis range                                          
+        y_pos[0,i] = random.uniform(0,0.002)        # initialize y coordinates for all N particles at time t = 0 
+                                                    # to a random position within the y-axis range
+        theta_val[0,i] = random.uniform(0,2*np.pi)  # initialize swimming 
+        
+        
+        for j in range (1,n):         # for every time step... 
+            ksi = np.random.randn(1)  # set ksi to a random number in a normal Gaussian distribution 
+            theta_val[j,i] = theta_val[j-1,i]+((w/2)+muR_M*B*np.sin(np.pi-theta_val[j-1,i])+np.sqrt(2*Dr/dt)*ksi)*dt
+            x_pos[j,i] = x_pos[j-1,i]+V*np.cos(theta_val[j,i])*dt
+            
+            if x_pos[j,i] > 0.002 or x_pos[j,i] < 0:    # Setting boundary conditions for if the particle moves beyond the x-axis limit
+                x_pos[j,i] = x_pos[j-1,i]
+
+            y_pos[j,i] = y_pos[j-1,i]+V*np.sin(theta_val[j,i])*dt 
+            
+            if y_pos[j,i] > 0.002 or y_pos[j,i] < 0:    # Setting boundary conditions for if the particle moves beyond the x-axis limit
+                y_pos[j,i] = y_pos[j-1,i]
+                
+    return x_pos, y_pos, theta_val 
+
+
+
+#*************************************************************************************************************
+
+# DATA FRAME TO CSV
+
+DFx = pd.DataFrame(x_pos) # converting x position matrix to a data frame
+DFy = pd.DataFrame(y_pos) # converting y position matrix to a data frame
+DFx.to_csv("x_data.csv")    # saving x position DF as a csv file
+DFy.to_csv("y_data.csv")    # saving y position DF as a csv file 
+  
+  
+# =============================================================================
+# =============================================================================
